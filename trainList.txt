@@ -1,0 +1,60 @@
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import socket from "../socket"; // Adjust if your socket setup path is different
+
+export function TrainList() {
+  const [trains, setTrains] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTrains();
+
+    // Listen for real-time train addition via socket.io
+    socket.on("new_train", (train) => {
+      setTrains((prev) => [...prev, train]);
+    });
+
+    return () => socket.off("new_train");
+  }, []);
+
+  const fetchTrains = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get("http://localhost:5000/get_trains");
+      setTrains(res.data);
+    } catch (error) {
+      console.error("Failed to fetch trains:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <p>Loading trains...</p>;
+  }
+
+  if (trains.length === 0) {
+    return <p>No trains scheduled yet.</p>;
+  }
+
+  // Sort trains by platform number
+  const sortedTrains = [...trains].sort((a, b) => a.platform - b.platform);
+
+  return (
+    <ul className="space-y-3 max-h-[400px] overflow-y-auto">
+      {sortedTrains.map((train) => (
+        <li
+          key={train.train_id}
+          className="p-4 border rounded-lg shadow-sm bg-white flex justify-between items-center"
+        >
+          <div>
+            <p className="font-semibold text-lg">Train {train.train_id}</p>
+            <p>
+              Platform {train.platform} | {train.arrival} - {train.departure} | {train.direction}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
